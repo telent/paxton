@@ -16,7 +16,7 @@ in
     buildInputs = [ nodePackages.package wayland wlc libxkbcommon pixman
      fontconfig pcre json_c pango cairo libinput libcap nodejs dbus_libs
       ];
-    repl = "${nodejs}/bin/node ${clojurescriptJs}";
+    repl = "${nodejs}/bin/node -r ./wlc ${clojurescriptJs}";
     LD_LIBRARY_PATH = stdenv.lib.makeLibraryPath [ wlc dbus_libs ];
     NODE_PATH = "${nodePackages.package}/lib/node_modules/paxton/node_modules" ;
 

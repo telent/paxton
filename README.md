@@ -6,9 +6,8 @@ Doesn't work yet
 
 ```
 $ nix-shell
-[nix-shell:~/src/paxton]$ eval $repl
+[nix-shell:~/src/paxton]$ eval $repl paxton.cljs
 Could not load source-map support
-cljs.user=> (js/runCompositor)
 ```
 
 In another winow you can now run e.g. `weston-terminal` which will

@@ -22,6 +22,7 @@
 (def set-view-created-cb (jna/to-fn Void wlc/wlc_set_view_created_cb ))
 (def set-view-focus-cb (jna/to-fn Void wlc/wlc_set_view_focus_cb ))
 
+(def set-keyboard-key-cb (jna/to-fn Void wlc/wlc_set_keyboard_key_cb))
 
 (def WLC_BIT_ACTIVATED (bit-shift-left 1 4))
 
@@ -61,11 +62,28 @@
     (callback [_ logtype msg]
       (println "log " logtype msg))))
 
+(definterface IKeyboardCallback
+  (^void callback [^com.sun.jna/Pointer view
+                   ^int time
+                   ^com.sun.jna/Pointer modifiers
+                   ^int keycode         ;may be not a keycode?
+                   ^int key_state]))
+
+(def key-handler
+  (reify
+    Callback
+    IKeyboardCallback
+    (callback [_ view time mods code state]
+      (println "key " view time mods code state)
+      ;; return true to consume the key
+      false)))
+
 
 (defn -main []
   (log-set-handler log-handler)
   (set-view-created-cb view-created)
   (set-view-focus-cb view-focused)
+  (set-keyboard-key-cb key-handler)
 
   (when (wlc-init)
     (wlc-run)))

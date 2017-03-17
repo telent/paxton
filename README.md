@@ -1,15 +1,22 @@
 # Paxton
 
-A compositor for Wayland (written in/extensible using) Clojurescript
+A compositor for Wayland (written in/extensible using) Clojure.
 
 Doesn't work yet
 
 ```
 $ nix-shell
-[nix-shell:~/src/paxton]$ eval $repl paxton.cljs
-Could not load source-map support
+[nix-shell:~/src/paxton]$ boot repl
+...
+boot.user=> (paxton.core/-main)
 ```
 
+If you move the mouse around and hit keys you will see debugging spew
+which is (should be) in some way lightly correlated with your activity.
+
 In another winow you can now run e.g. `weston-terminal` which will
-render its initial window and then the whole thing hangs unresponsive
+render its initial window and let you type into it.  Actual window
+management of any kind is still yet to be implemented.
+
+
 

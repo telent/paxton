@@ -13,12 +13,16 @@ in
     name = "paxton-${version}";
     src = ./. ;
     nativeBuildInputs = [ makeWrapper ];
-    buildInputs = [ nodePackages.package wayland wlc libxkbcommon pixman
-     fontconfig pcre json_c pango cairo libinput libcap nodejs dbus_libs
+    buildInputs = [ # nodePackages.package
+     wayland wlc libxkbcommon pixman
+     fontconfig pcre json_c pango cairo libinput libcap
+     # nodejs
+     dbus_libs
+     boot
       ];
-    repl = "${nodejs}/bin/node -r ./wlc ${clojurescriptJs}";
+#    repl = "${nodejs}/bin/node -r ./wlc ${clojurescriptJs}";
     LD_LIBRARY_PATH = stdenv.lib.makeLibraryPath [ wlc dbus_libs ];
-    NODE_PATH = "${nodePackages.package}/lib/node_modules/paxton/node_modules" ;
+#    NODE_PATH = "${nodePackages.package}/lib/node_modules/paxton/node_modules" ;
 
   }
 

@@ -46,24 +46,25 @@
         (view-focus view))
       (Integer. 1))))
 
+(defmacro define-callback [fname interface args & body]
+  `(def ~fname
+     (reify
+       Callback
+       ~interface
+       (callback ~args
+         ~@body))))
+
 (definterface IFocusCallback
   (^void callback [^com.sun.jna/Pointer view ^int focus]))
 
-(def view-focused
-  (reify
-    Callback
-    IFocusCallback
-    (callback [_ view focus]
-      (view-set-state view WLC_BIT_ACTIVATED focus))))
+(define-callback view-focused IFocusCallback [_ view focus]
+  (view-set-state view WLC_BIT_ACTIVATED focus))
 
 (definterface ILogCallback
   (^void callback [^int type ^String msg]))
-(def log-handler
-  (reify
-    Callback
-    ILogCallback
-    (callback [_ logtype msg]
-      (println "log " logtype msg))))
+
+(define-callback log-handler ILogCallback [_ logtype msg]
+  (println "log " logtype msg))
 
 (definterface IKeyboardCallback
   (^void callback [^com.sun.jna/Pointer view
@@ -72,31 +73,23 @@
                    ^int keycode         ;may be not a keycode?
                    ^int key_state]))
 
-(def key-handler
-  (reify
-    Callback
-    IKeyboardCallback
-    (callback [_ view time mods code state]
-      (println "key " view time mods code state)
-      ;; return true to consume the key
-      false)))
+(define-callback key-handler IKeyboardCallback [_ view time mods code state]
+  (println "key " view time mods code state)
+  ;; return true to consume the key
+  false)
 
 (definterface IPointerMoveCallback
   (^void callback [^com.sun.jna/Pointer handle
                    ^int time
                    ^com.sun.jna/Pointer position]))
 
-(def pointer-move-handler
-  (reify
-    Callback
-    IPointerMoveCallback
-    (callback [_ handle time position]
-      (let [x (.getInt position 0)
-            y (.getInt position 4)]
-        (println "move " handle time x y)
-        (pointer-set-position position)
-        false))))
-
+(define-callback pointer-move-handler
+  IPointerMoveCallback [_ handle time position]
+  (let [x (.getInt position 0)
+        y (.getInt position 4)]
+    (println "move " handle time x y)
+    (pointer-set-position position)
+    false))
 
 (defn -main []
   (log-set-handler log-handler)

@@ -17,12 +17,15 @@
 (def view-focus (jna/to-fn Void wlc/wlc_view_focus ))
 (def view-set-state (jna/to-fn Void wlc/wlc_view_set_state ))
 
+(def pointer-set-position (jna/to-fn Void wlc/wlc_pointer_set_position))
+
 (def output-get-mask (jna/to-fn Pointer wlc/wlc_output_get_mask ))
 
 (def set-view-created-cb (jna/to-fn Void wlc/wlc_set_view_created_cb ))
 (def set-view-focus-cb (jna/to-fn Void wlc/wlc_set_view_focus_cb ))
 
 (def set-keyboard-key-cb (jna/to-fn Void wlc/wlc_set_keyboard_key_cb))
+(def set-pointer-motion-cb (jna/to-fn Void wlc/wlc_set_pointer_motion_cb))
 
 (def WLC_BIT_ACTIVATED (bit-shift-left 1 4))
 
@@ -78,12 +81,29 @@
       ;; return true to consume the key
       false)))
 
+(definterface IPointerMoveCallback
+  (^void callback [^com.sun.jna/Pointer handle
+                   ^int time
+                   ^com.sun.jna/Pointer position]))
+
+(def pointer-move-handler
+  (reify
+    Callback
+    IPointerMoveCallback
+    (callback [_ handle time position]
+      (let [x (.getInt position 0)
+            y (.getInt position 4)]
+        (println "move " handle time x y)
+        (pointer-set-position position)
+        false))))
+
 
 (defn -main []
   (log-set-handler log-handler)
   (set-view-created-cb view-created)
   (set-view-focus-cb view-focused)
   (set-keyboard-key-cb key-handler)
+  (set-pointer-motion-cb pointer-move-handler)
 
   (when (wlc-init)
     (wlc-run)))

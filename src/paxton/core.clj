@@ -29,22 +29,7 @@
 
 (def WLC_BIT_ACTIVATED (bit-shift-left 1 4))
 
-(definterface IViewCallback
-  (^int callback [^com.sun.jna/Pointer view]))
-
-(def view-created
-  (reify
-    Callback
-    IViewCallback
-    (callback [this view]
-      (let [_ (println "hey" view)
-            output (view-get-output  view)
-            mask (output-get-mask  output)]
-        (println "view created ")
-        (view-set-mask view mask)
-        (view-bring-to-front view)
-        (view-focus view))
-      (Integer. 1))))
+(defonce all-views (atom {}))
 
 (defmacro define-callback [fname interface args & body]
   `(def ~fname
@@ -53,6 +38,25 @@
        ~interface
        (callback ~args
          ~@body))))
+
+(defmacro make-callback [interface args & body]
+  `(reify
+     Callback
+     ~interface
+     (callback ~args
+       ~@body)))
+
+(definterface IViewCallback
+  (^int callback [^com.sun.jna/Pointer view]))
+
+(defn view-created [view]
+  (let [_ (println "new created 2" view)
+        output (view-get-output  view)
+        mask (output-get-mask  output)]
+    (view-set-mask view mask)
+    (view-bring-to-front view)
+    (view-focus view)
+    (Integer. 1)))
 
 (definterface IFocusCallback
   (^void callback [^com.sun.jna/Pointer view ^int focus]))
@@ -93,7 +97,9 @@
 
 (defn -main []
   (log-set-handler log-handler)
-  (set-view-created-cb view-created)
+  (set-view-created-cb
+   (make-callback IViewCallback [_ view]
+                  (view-created view)))
   (set-view-focus-cb view-focused)
   (set-keyboard-key-cb key-handler)
   (set-pointer-motion-cb pointer-move-handler)

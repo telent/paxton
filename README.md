@@ -1,14 +1,19 @@
 # Paxton
 
-A compositor for Wayland (written in/extensible using) Clojure.
+A compositor for Wayland (written in/extensible using)
+Clojure. Doesn't work yet
 
-Doesn't work yet
+Per Wikipedia, "Sir Joseph Paxton (3 August 1803 – 8 June 1865) was an
+English gardener, architect and Member of Parliament, best known for
+designing the Crystal Palace".  Clearly a man who knew how to arange
+windows
+
 
 ```
 $ nix-shell # or arrange in some other way to install the dependencies
 [nix-shell:~/src/paxton]$ boot repl
 ...
-boot.user=> (paxton.core/-main)
+boot.user=> (future (paxton.core/-main))
 ```
 
 If you are running under X11, it will pop up a blank Wayland window.

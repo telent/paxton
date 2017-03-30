@@ -13,6 +13,9 @@
 (def view-set-mask (jna/to-fn Void wlc/wlc_view_set_mask))
 (def view-get-output (jna/to-fn Pointer wlc/wlc_view_get_output))
 
+(def set-view-render-pre-cb (jna/to-fn Pointer wlc/wlc_set_view_render_pre_cb))
+(def set-view-render-post-cb (jna/to-fn Pointer wlc/wlc_set_view_render_post_cb))
+
 (def view-bring-to-front (jna/to-fn Void wlc/wlc_view_bring_to_front ))
 (def view-focus (jna/to-fn Void wlc/wlc_view_focus ))
 (def view-set-state (jna/to-fn Void wlc/wlc_view_set_state ))
@@ -28,6 +31,14 @@
 (def set-pointer-motion-cb (jna/to-fn Void wlc/wlc_set_pointer_motion_cb))
 
 (def WLC_BIT_ACTIVATED (bit-shift-left 1 4))
+
+
+(defn write-pixels [[x y w h] data]
+  ;; it appears that the only supported pixel format is RGBA8888.  See
+  ;; https://github.com/Cloudef/wlc/blob/1910a6ddffe53b8886c48566dce0ad6fd7f60f76/include/wlc/wlc-render.h#L13
+  (let [fmt 0
+        geom (int-array 4 [x y w h])]
+    (jna/invoke Void wlc/wlc_pixels_write fmt geom data)))
 
 (defonce all-views (atom {}))
 
@@ -86,6 +97,16 @@
     (pointer-set-position position)
     false))
 
+(defn view-pre-render [view]
+  (println "pre render")
+  (Integer. 1))
+
+(defn view-post-render [view]
+  (println "post render")
+  (let [data (int-array (* 32 32) 0xff0000ff)]
+    (write-pixels [400 400 32 32] data))
+  (Integer. 1))
+
 (defn -main []
   (log-set-handler
    (make-callback ILogCallback [_ logtype msg]
@@ -93,6 +114,14 @@
   (set-view-created-cb
    (make-callback IViewCallback [_ view]
                   (view-created view)))
+
+  (set-view-render-pre-cb
+   (make-callback IViewCallback [_ view]
+                  (view-pre-render view)))
+  (set-view-render-post-cb
+   (make-callback IViewCallback [_ view]
+                  (view-post-render view)))
+
   (set-view-focus-cb
    (make-callback IFocusCallback [_ view focus]
                   (view-focused view focus)))
@@ -102,7 +131,7 @@
 
   (set-pointer-motion-cb
    (make-callback IPointerMoveCallback [_ handle time position]
-                  (pointer-move-handler handle time positionx)))
+                  (pointer-move-handler handle time position)))
 
   (when (wlc-init)
     (wlc-run)))

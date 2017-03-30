@@ -31,14 +31,6 @@
 
 (defonce all-views (atom {}))
 
-(defmacro define-callback [fname interface args & body]
-  `(def ~fname
-     (reify
-       Callback
-       ~interface
-       (callback ~args
-         ~@body))))
-
 (defmacro make-callback [interface args & body]
   `(reify
      Callback
@@ -61,13 +53,13 @@
 (definterface IFocusCallback
   (^void callback [^com.sun.jna/Pointer view ^int focus]))
 
-(define-callback view-focused IFocusCallback [_ view focus]
+(defn view-focused [view focus]
   (view-set-state view WLC_BIT_ACTIVATED focus))
 
 (definterface ILogCallback
   (^void callback [^int type ^String msg]))
 
-(define-callback log-handler ILogCallback [_ logtype msg]
+(defn log-message [logtype msg]
   (println "log " logtype msg))
 
 (definterface IKeyboardCallback
@@ -77,7 +69,7 @@
                    ^int keycode         ;may be not a keycode?
                    ^int key_state]))
 
-(define-callback key-handler IKeyboardCallback [_ view time mods code state]
+(defn key-handler [view time mods code state]
   (println "key " view time mods code state)
   ;; return true to consume the key
   false)
@@ -87,8 +79,7 @@
                    ^int time
                    ^com.sun.jna/Pointer position]))
 
-(define-callback pointer-move-handler
-  IPointerMoveCallback [_ handle time position]
+(defn pointer-move-handler [handle time position]
   (let [x (.getInt position 0)
         y (.getInt position 4)]
     (println "move " handle time x y)
@@ -96,13 +87,22 @@
     false))
 
 (defn -main []
-  (log-set-handler log-handler)
+  (log-set-handler
+   (make-callback ILogCallback [_ logtype msg]
+                  (log-message logtype msg)))
   (set-view-created-cb
    (make-callback IViewCallback [_ view]
                   (view-created view)))
-  (set-view-focus-cb view-focused)
-  (set-keyboard-key-cb key-handler)
-  (set-pointer-motion-cb pointer-move-handler)
+  (set-view-focus-cb
+   (make-callback IFocusCallback [_ view focus]
+                  (view-focused view focus)))
+  (set-keyboard-key-cb
+   (make-callback IKeyboardCallback [_ view time mods code state]
+                  (key-handler view time mods code state)))
+
+  (set-pointer-motion-cb
+   (make-callback IPointerMoveCallback [_ handle time position]
+                  (pointer-move-handler handle time positionx)))
 
   (when (wlc-init)
     (wlc-run)))

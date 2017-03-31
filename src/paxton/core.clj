@@ -40,6 +40,24 @@
         geom (int-array 4 [x y w h])]
     (jna/invoke Void wlc/wlc_pixels_write fmt geom data)))
 
+(defn get-view-parent [view-handle]
+  (jna/invoke Pointer wlc/wlc_view_get_parent view-handle))
+
+(defn geometry->array [geom]
+  (when geom
+    (map #(.getInt geom (* 4 %)) [0 1 2 3])))
+
+(defn get-view-geometry [view-handle]
+  (let [g (jna/invoke Pointer wlc/wlc_view_get_geometry view-handle)]
+    (geometry->array g)))
+
+(defn geoms [view]
+  (let [p (get-view-parent view)
+        g (get-view-geometry view)]
+    (if p
+      (conj (geoms p) g)
+      [g])))
+
 (defonce all-views (atom {}))
 
 (defmacro make-callback [interface args & body]
@@ -53,19 +71,27 @@
   (^int callback [^com.sun.jna/Pointer view]))
 
 (defn view-created [view]
-  (let [_ (println "new created 2" view)
-        output (view-get-output  view)
+  (println "new created 2" view (geoms view))
+  (let [output (view-get-output  view)
         mask (output-get-mask  output)]
     (view-set-mask view mask)
     (view-bring-to-front view)
     (view-focus view)
     (Integer. 1)))
 
+(definterface IViewAndPointerCallback
+  (^void callback [^com.sun.jna/Pointer view
+                   ^com.sun.jna/Pointer ptr]))
+
 (definterface IFocusCallback
   (^void callback [^com.sun.jna/Pointer view ^int focus]))
 
 (defn view-focused [view focus]
   (view-set-state view WLC_BIT_ACTIVATED focus))
+
+(defn view-request-geometry [view [x y w h]]
+  (println "geom req " x y w h)
+  (jna/invoke Void wlc/wlc_view_set_geometry view 0 (int-array 4 [x y w h])))
 
 (definterface ILogCallback
   (^void callback [^int type ^String msg]))
@@ -102,12 +128,15 @@
   (Integer. 1))
 
 (defn view-post-render [view]
-  (println "post render")
-  (let [data (int-array (* 32 32) 0xff0000ff)]
-    (write-pixels [400 400 32 32] data))
+  (println "post render" (geoms view))
+  (let [[x y w h] (get-view-geometry view)]
+    (write-pixels [x y w 10] (int-array (* 10 w) 0xff0000ff))
+    (write-pixels [x (+ y h) w 10] (int-array (* 10 w) 0xff0000ff))
+    (write-pixels [(+ x w) y 5 h] (int-array (* 5 h) 0xff00ff00))
+    (write-pixels [x y 5 h] (int-array (* 5 h) 0xff00ff00)))
   (Integer. 1))
 
-(defn -main []
+(defn install-callbacks []
   (log-set-handler
    (make-callback ILogCallback [_ logtype msg]
                   (log-message logtype msg)))
@@ -133,5 +162,15 @@
    (make-callback IPointerMoveCallback [_ handle time position]
                   (pointer-move-handler handle time position)))
 
+  (jna/invoke
+   Void wlc/wlc_set_view_request_geometry_cb
+   (make-callback IViewAndPointerCallback [_ view-handle geom]
+                  (view-request-geometry view-handle (geometry->array geom)))))
+
+
+(install-callbacks)
+
+(defn -main []
+  (install-callbacks)
   (when (wlc-init)
     (wlc-run)))

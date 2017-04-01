@@ -3,6 +3,8 @@
   (:import (com.sun.jna Pointer Callback))
   (:gen-class))
 
+(def pt->pixel #(* % 3)) ; "works on my machine"
+
 (def wlc-init (jna/to-fn Integer wlc/wlc_init))
 
 (def wlc-run (jna/to-fn Void wlc/wlc_run))
@@ -70,14 +72,26 @@
 (definterface IViewCallback
   (^int callback [^com.sun.jna/Pointer view]))
 
+(defn border-rectangles [[x y w h] title]
+  (let [stroke (pt->pixel 2)]
+    {:top {:geometry [x y w (pt->pixel 14)] :rgba 0xff0000ff}
+     :bottom {:geometry [x (+ y h) w stroke] :rgba 0xff0000ff}
+     :left {:geometry [x y stroke h] :rgba 0xff00ff00}
+     :right  {:geometry [(+ x w) y stroke h] :rgba 0xff00ff00}}))
+
 (defn view-created [view]
   (println "new created 2" view (geoms view))
   (let [output (view-get-output  view)
+        geom (get-view-geometry view)
         mask (output-get-mask  output)]
     (view-set-mask view mask)
     (view-bring-to-front view)
     (view-focus view)
+    (swap! all-views assoc view {:geometry geom
+                                 :borders (border-rectangles geom "foo")})
     (Integer. 1)))
+
+(list @all-views)
 
 (definterface IViewAndPointerCallback
   (^void callback [^com.sun.jna/Pointer view
@@ -89,9 +103,13 @@
 (defn view-focused [view focus]
   (view-set-state view WLC_BIT_ACTIVATED focus))
 
-(defn view-request-geometry [view [x y w h]]
-  (println "geom req " x y w h)
-  (jna/invoke Void wlc/wlc_view_set_geometry view 0 (int-array 4 [x y w h])))
+(defn view-request-geometry [view geom]
+  (let [[x y w h] geom]
+    (println "geom req " x y w h)
+    (swap! all-views assoc view
+           {:geometry geom
+            :borders (border-rectangles geom "foo")})
+    (jna/invoke Void wlc/wlc_view_set_geometry view 0 (int-array 4 geom))))
 
 (definterface ILogCallback
   (^void callback [^int type ^String msg]))
@@ -129,12 +147,13 @@
 
 (defn view-post-render [view]
   (println "post render" (geoms view))
-  (let [[x y w h] (get-view-geometry view)]
-    (write-pixels [x y w 10] (int-array (* 10 w) 0xff0000ff))
-    (write-pixels [x (+ y h) w 10] (int-array (* 10 w) 0xff0000ff))
-    (write-pixels [(+ x w) y 5 h] (int-array (* 5 h) 0xff00ff00))
-    (write-pixels [x y 5 h] (int-array (* 5 h) 0xff00ff00)))
-  (Integer. 1))
+  (let [shell (get @all-views view)]
+    (run! (fn [b]
+            (let [g (:geometry b)
+                  [x y w h] g]
+              (write-pixels g (int-array (* w h) (:rgba b)))))
+          (vals (:borders shell))))
+    (Integer. 1))
 
 (defn install-callbacks []
   (log-set-handler

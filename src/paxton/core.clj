@@ -70,7 +70,7 @@
        ~@body)))
 
 (definterface IViewCallback
-  (^int callback [^com.sun.jna/Pointer view]))
+  (^boolean callback [^com.sun.jna/Pointer view]))
 
 (defn border-rectangles [[x y w h] title]
   (let [stroke (pt->pixel 2)]
@@ -89,7 +89,7 @@
     (view-focus view)
     (swap! all-views assoc view {:geometry geom
                                  :borders (border-rectangles geom "foo")})
-    (Integer. 1)))
+    true))
 
 (list @all-views)
 
@@ -118,11 +118,11 @@
   (println "log " logtype msg))
 
 (definterface IKeyboardCallback
-  (^void callback [^com.sun.jna/Pointer view
-                   ^int time
-                   ^com.sun.jna/Pointer modifiers
-                   ^int keycode         ;may be not a keycode?
-                   ^int key_state]))
+  (^boolean callback [^com.sun.jna/Pointer view
+                      ^int time
+                      ^com.sun.jna/Pointer modifiers
+                      ^int keycode         ;may be not a keycode?
+                      ^int key_state]))
 
 (defn key-handler [view time mods code state]
   (println "key " view time mods code state)
@@ -130,9 +130,9 @@
   false)
 
 (definterface IPointerMoveCallback
-  (^void callback [^com.sun.jna/Pointer handle
-                   ^int time
-                   ^com.sun.jna/Pointer position]))
+  (^boolean callback [^com.sun.jna/Pointer handle
+                      ^int time
+                      ^com.sun.jna/Pointer position]))
 
 (defn pointer-move-handler [handle time position]
   (let [x (.getInt position 0)
@@ -143,7 +143,7 @@
 
 (defn view-pre-render [view]
   (println "pre render")
-  (Integer. 1))
+  true)
 
 (defn view-post-render [view]
   (println "post render" (geoms view))
@@ -153,7 +153,7 @@
                   [x y w h] g]
               (write-pixels g (int-array (* w h) (:rgba b)))))
           (vals (:borders shell))))
-    (Integer. 1))
+  true)
 
 (defn install-callbacks []
   (log-set-handler

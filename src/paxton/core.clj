@@ -53,6 +53,11 @@
   (let [g (jna/invoke Pointer wlc/wlc_view_get_geometry view-handle)]
     (geometry->array g)))
 
+(defn in-bounds? [[xp yp] [x y w h]]
+  (and (<= x xp (+ x w))
+       (<= y yp (+ y h))))
+
+
 (defn geoms [view]
   (let [p (get-view-parent view)
         g (get-view-geometry view)]
@@ -141,12 +146,40 @@
     (pointer-set-position position)
     false))
 
+(definterface IPointerButtonCallback
+  (^boolean callback [^com.sun.jna/Pointer view
+                      ^int time
+                      ^com.sun.jna/Pointer modifiers
+                      ^int button          ;actually uint32
+                      ^int button-state
+                      ^com.sun.jna/Pointer position]))
+
+(defn find-border-at-point [[x y] view]
+  (if-let [[n geom]
+           (first
+            (filter (fn [[n attrs]]
+                      (in-bounds? [x y] (:geometry attrs)))
+                    (:borders (get @all-views view))))]
+    [view n]))
+
+(defn pointer-button-handler [view time mods button button-state position]
+  (let [x (.getInt position 0)
+        y (.getInt position 4)]
+    (println "button " view time button button-state x y)
+    (let [thing (map (partial find-border-at-point [x y])
+                     (keys @all-views))]
+      (when (seq thing)
+        (println "button on " thing)))
+    false                               ; did not consume
+    ))
+
+
 (defn view-pre-render [view]
-  (println "pre render")
+;  (println "pre render")
   true)
 
 (defn view-post-render [view]
-  (println "post render" (geoms view))
+;  (println "post render" (geoms view))
   (let [shell (get @all-views view)]
     (run! (fn [b]
             (let [g (:geometry b)
@@ -181,6 +214,12 @@
    (make-callback IPointerMoveCallback [_ handle time position]
                   (pointer-move-handler handle time position)))
 
+  (jna/invoke
+   Void wlc/wlc_set_pointer_button_cb
+   (make-callback IPointerButtonCallback [_ view time modifiers
+                                          button state position]
+                  (pointer-button-handler view time modifiers
+                                          button state position)))
   (jna/invoke
    Void wlc/wlc_set_view_request_geometry_cb
    (make-callback IViewAndPointerCallback [_ view-handle geom]
